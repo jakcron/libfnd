@@ -4,10 +4,10 @@
 
 namespace fnd
 {
-	class ISerialisable
+	class IByteModel
 	{
 	public:
-		virtual ~ISerialisable() = default;
+		virtual ~IByteModel() = default;
 
 		// serialise
 		virtual void toBytes() = 0;

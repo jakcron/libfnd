@@ -48,6 +48,7 @@ void SimpleFile::open(const std::string& path, OpenMode mode)
 		throw fnd::Exception(kModuleName, "Failed to open file.");
 	}
 
+
 #else
 	//close();
 	mMode = mode;
