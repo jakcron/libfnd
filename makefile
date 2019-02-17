@@ -122,7 +122,7 @@ clean: clean_object_files remove_binary_dir
 	@$(CXX) $(CXXFLAGS) -c $< -o $@ 
 
 # Binary Directory
-..PHONY: create_binary_dir
+.PHONY: create_binary_dir
 create_binary_dir:
 	@mkdir -p "$(PROJECT_BIN_PATH)"
 
@@ -161,13 +161,13 @@ endif
 .PHONY: docs
 docs:
 ifneq ($(PROJECT_DOCS_PATH),)
-	doxygen $(PROJECT_DOXYFILE_PATH)
+	doxygen "$(PROJECT_DOXYFILE_PATH)"
 endif
 
 .PHONY: clean_docs
 clean_docs:
 ifneq ($(PROJECT_DOCS_PATH),)
-	@rm -rf $(PROJECT_DOCS_PATH)
+	@rm -rf "$(PROJECT_DOCS_PATH)"
 endif
 
 # Dependencies
