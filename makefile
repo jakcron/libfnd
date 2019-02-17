@@ -171,8 +171,8 @@ ifneq ($(PROJECT_DOCS_PATH),)
 endif
 
 # Dependencies
-.PHONY: build_deps
-build_deps:
+.PHONY: deps
+deps:
 	@$(foreach lib,$(PROJECT_DEPEND_LOCAL), cd $(ROOT_PROJECT_DEPENDENCY_PATH)/lib$(lib) && $(MAKE) static_lib && cd $(PROJECT_PATH);)
 
 .PHONY: clean_deps
