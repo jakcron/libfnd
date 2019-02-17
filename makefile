@@ -110,7 +110,7 @@ TESTSRC_OBJ = $(foreach dir,$(PROJECT_TESTSRC_SUBDIRS),$(subst .cpp,.o,$(wildcar
 # These can typically be used together however *_lib and program should not be used together
 all: static_lib
 	
-clean: clean_binaries remove_binary_dir
+clean: clean_object_files remove_binary_dir
 
 # Object Compile Rules
 %.o: %.c
@@ -122,19 +122,19 @@ clean: clean_binaries remove_binary_dir
 	@$(CXX) $(CXXFLAGS) -c $< -o $@ 
 
 # Binary Directory
-.PHONY: create_binary_dir
+..PHONY: create_binary_dir
 create_binary_dir:
 	@mkdir -p "$(PROJECT_BIN_PATH)"
 
 .PHONY: remove_binary_dir
 remove_binary_dir:
 ifneq ($(PROJECT_BIN_PATH),)
-	@rm -f "$(PROJECT_BIN_PATH)"
+	@rm -rf "$(PROJECT_BIN_PATH)"
 endif
 
-.PHONY: clean_binaries
-clean_binaries:
-	@rm -f $(SRC_OBJ) $(TESTSRC_OBJ) "$(PROJECT_BIN_PATH)/$(PROJECT_NAME).a" "$(PROJECT_BIN_PATH)/$(PROJECT_SO_FILENAME)" "$(PROJECT_BIN_PATH)/$(PROJECT_NAME)"
+.PHONY: clean_object_files
+clean_object_files:
+	@rm -f $(SRC_OBJ) $(TESTSRC_OBJ)
 
 # Build Library
 static_lib: $(SRC_OBJ) create_binary_dir
