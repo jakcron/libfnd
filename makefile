@@ -50,9 +50,6 @@ ifneq ($(PROJECT_DEPEND_EXTERNAL),)
 	LIB +=  $(foreach dep,$(PROJECT_DEPEND_EXTERNAL), -l$(dep))
 endif
 
-# Generate compiler flags for program/library version
-PROJECT_VER_DEF = -DPROJECT_VER_MAJOR=$(PROJECT_VER_MAJOR) -DPROJECT_VER_MINOR=$(PROJECT_VER_MINOR) -DPROJECT_VER_PATCH=$(PROJECT_VER_PATCH)
-
 # Detect Platform
 ifeq ($(PROJECT_PLATFORM),)
 	ifeq ($(OS), Windows_NT)
@@ -95,8 +92,8 @@ else ifeq ($(PROJECT_PLATFORM), MACOS)
 endif
 
 # Compiler Flags
-CXXFLAGS = -std=c++11 $(INC) $(PROJECT_VER_DEF) $(WARNFLAGS) -fPIC
-CFLAGS = -std=c11 $(INC) $(PROJECT_VER_DEF) $(WARNFLAGS) -fPIC
+CXXFLAGS = -std=c++11 $(INC) $(WARNFLAGS) -fPIC
+CFLAGS = -std=c11 $(INC) $(WARNFLAGS) -fPIC
 
 # Object Files
 SRC_OBJ = $(foreach dir,$(PROJECT_SRC_SUBDIRS),$(subst .cpp,.o,$(wildcard $(dir)/*.cpp))) $(foreach dir,$(PROJECT_SRC_SUBDIRS),$(subst .c,.o,$(wildcard $(dir)/*.c)))
