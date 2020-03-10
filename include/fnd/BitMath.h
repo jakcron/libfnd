@@ -5,7 +5,7 @@ BitMath.h
 #pragma once
 
 // to be deprecated
-#define BIT(n) (1ULL << (n))
+#define BIT(n) (1ULL << (unsigned long long)(n))
 
 // Bit math macros
 #define _BIT(n) BIT(n)
