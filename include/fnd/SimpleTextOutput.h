@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <fnd/types.h>
 #include <fnd/Vec.h>
 
@@ -14,6 +15,7 @@ namespace fnd
 		static void hexDump(const byte_t* data, size_t len);
 		static std::string arrayToString(const byte_t* data, size_t len, bool upper_case, const std::string& separator);
 		static void stringToArray(const std::string& str, fnd::Vec<byte_t>& array);
+		static void dumpStringList(const std::vector<std::string>& str_list, size_t row_len, size_t indent_len);
 
 	private:
 		static const size_t kDefaultRowLen = 0x10;

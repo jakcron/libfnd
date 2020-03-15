@@ -115,3 +115,95 @@ void fnd::SimpleTextOutput::stringToArray(const std::string& str, fnd::Vec<byte_
 		array[i] = (charToByte(str[i * 2]) << 4) | charToByte(str[(i * 2) + 1]);
 	}
 }
+
+/*
+		size_t lineLen = 0;
+		for (size_t i = 0; i < syscalls.size(); i++)
+		{
+			if (lineLen > 60)
+			{
+				lineLen = 0;
+				std::cout << std::endl;
+				std::cout << "    ";
+			}
+			std::string syscall_name = nn::hac::KernelCapabilityUtil::getSystemCallAsString(syscalls[i]);
+			std::cout << syscall_name;
+			if (syscalls[i] != syscalls.atBack())
+				std::cout << ", ";
+			lineLen += syscall_name.length();
+		}
+*/
+/*
+		// TODO this formatting loop could be a utils function
+		for (size_t flag = 0, printed = 0; flag < fs_access.size(); flag++)
+		{
+			// skip unset flags
+			if (fs_access.test(flag) == false)
+				continue;
+
+			// format the strings
+			// for each 10 printed we do a new line
+			if (printed % 10 == 0)
+			{
+				// skip new line when we haven't printed anything
+				if (printed != 0)
+					std::cout << std::endl;
+				std::cout << "    ";
+			}
+			// within a line we want to separate the next string from the last one with a comma and a space
+			else
+			{
+				std::cout << ", ";	
+			}
+			printed++;
+
+			// output string info
+			std::cout << nn::hac::FileSystemAccessUtil::getFsAccessFlagAsString(nn::hac::fac::FsAccessFlag(flag));
+			if (_HAS_BIT(mCliOutputMode, OUTPUT_EXTENDED))
+				std::cout << " (bit " << std::dec << (uint32_t)flag << ")";				
+		}
+*/
+
+void fnd::SimpleTextOutput::dumpStringList(const std::vector<std::string>& str_list, size_t row_len, size_t indent_len)
+{
+	// create indentation string
+	std::string indent_str = "";
+	for (size_t i = 0; i < indent_len; i++)
+	{
+		indent_str += " ";
+	}
+
+	// create delimiter string
+	std::string delimiter_str = ", ";
+
+	size_t printed_len = 0;
+	for (auto itr = str_list.begin(); itr != str_list.end(); itr++)
+	{
+		// format the strings
+		// wrap the line after row_len multples
+		if (printed_len > row_len || printed_len == 0)
+		{
+			// don't print the new line if this is the first string
+			if (itr != str_list.begin())
+				std::cout << delimiter_str << std::endl;
+
+			// print indent
+			std::cout << indent_str;
+
+			// reset printed_len
+			printed_len = 0;
+		}
+		// within a line we want to separate the next string from the last one with a comma and a space
+		else
+		{
+			std::cout << delimiter_str;
+		}
+		
+		// print string
+		std::cout << *itr;
+
+		// note the length of the string printed
+		printed_len += itr->size() + delimiter_str.size();
+	}
+	std::cout << std::endl;
+}
