@@ -115,3 +115,47 @@ void fnd::SimpleTextOutput::stringToArray(const std::string& str, fnd::Vec<byte_
 		array[i] = (charToByte(str[i * 2]) << 4) | charToByte(str[(i * 2) + 1]);
 	}
 }
+
+void fnd::SimpleTextOutput::dumpStringList(const std::vector<std::string>& str_list, size_t row_len, size_t indent_len)
+{
+	// create indentation string
+	std::string indent_str = "";
+	for (size_t i = 0; i < indent_len; i++)
+	{
+		indent_str += " ";
+	}
+
+	// create delimiter string
+	std::string delimiter_str = ", ";
+
+	size_t printed_len = 0;
+	for (auto itr = str_list.begin(); itr != str_list.end(); itr++)
+	{
+		// format the strings
+		// wrap the line after row_len multples
+		if (printed_len > row_len || printed_len == 0)
+		{
+			// don't print the new line if this is the first string
+			if (itr != str_list.begin())
+				std::cout << delimiter_str << std::endl;
+
+			// print indent
+			std::cout << indent_str;
+
+			// reset printed_len
+			printed_len = 0;
+		}
+		// within a line we want to separate the next string from the last one with a comma and a space
+		else
+		{
+			std::cout << delimiter_str;
+		}
+		
+		// print string
+		std::cout << *itr;
+
+		// note the length of the string printed
+		printed_len += itr->size() + delimiter_str.size();
+	}
+	std::cout << std::endl;
+}
