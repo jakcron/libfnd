@@ -1,44 +1,28 @@
 #include <fnd/rsa.h>
-#include <polarssl/rsa.h>
-#include <polarssl/md.h>
-#include <polarssl/entropy.h>
-#include <polarssl/ctr_drbg.h>
+#include <mbedtls/rsa.h>
+#include <mbedtls/md.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
 
 using namespace fnd::rsa;
 using namespace fnd::sha;
 
-int getWrappedHashType(HashType type)
+mbedtls_md_type_t getMdWrappedHashType(HashType type)
 {
-	switch (type)
-	{
-	case HASH_SHA1:
-		return SIG_RSA_SHA1;
-		break;
-	case HASH_SHA256:
-		return SIG_RSA_SHA256;
-		break;
-	default:
-		return SIG_RSA_RAW;
-		break;
-	}
-	return 0;
-}
+	mbedtls_md_type_t md_type = MBEDTLS_MD_NONE;
 
-int getMdWrappedHashType(HashType type)
-{
 	switch (type)
 	{
 	case HASH_SHA1:
-		return POLARSSL_MD_SHA1;
+		md_type = MBEDTLS_MD_SHA1;
 		break;
 	case HASH_SHA256:
-		return POLARSSL_MD_SHA256;
+		md_type = MBEDTLS_MD_SHA256;
 		break;
 	default:
-		return POLARSSL_MD_NONE;
 		break;
 	}
-	return 0;
+	return md_type;
 }
 
 uint32_t getWrappedHashSize(HashType type)
@@ -61,154 +45,276 @@ uint32_t getWrappedHashSize(HashType type)
 
 int fnd::rsa::pkcs::rsaSign(const sRsa1024Key & key, HashType hash_type, const uint8_t * hash, uint8_t signature[kRsa1024Size])
 {
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V15, 0);
+	int ret = 0;
 
-	ctx.len = kRsa1024Size;
-	mpi_read_binary(&ctx.D, key.priv_exponent, ctx.len);
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_rsa_context rsa;
 
-	ret = rsa_rsassa_pkcs1_v15_sign(&ctx, RSA_PRIVATE, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+	// init context
+	mbedtls_entropy_init( &entropy );
+	mbedtls_ctr_drbg_init( &ctr_drbg );
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
 
-	rsa_free(&ctx);
+	// init prbg 
+	const char* pers = "fnd::rsa::pkcs::rsaSign";
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const uint8_t*)pers, strlen(pers));
+	if (ret) 
+		goto cleanup;
+
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa1024Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   key.priv_exponent, kRsa1024Size, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pkcs1_v15_sign(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_RSA_PRIVATE, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
+	mbedtls_ctr_drbg_free( &ctr_drbg );
+	mbedtls_entropy_free( &entropy );
 
 	return ret;
 }
 
 int fnd::rsa::pkcs::rsaVerify(const sRsa1024Key & key, HashType hash_type, const uint8_t * hash, const uint8_t signature[kRsa1024Size])
 {
-	static const uint8_t public_exponent[3] = { 0x01, 0x00, 0x01 };
+	int ret = 0;
 
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V15, 0);
+	mbedtls_rsa_context rsa;
 
-	ctx.len = kRsa1024Size;
-	mpi_read_binary(&ctx.E, public_exponent, sizeof(public_exponent));
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	// init context
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
 
-	ret = rsa_rsassa_pkcs1_v15_verify(&ctx, RSA_PUBLIC, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
 
-	rsa_free(&ctx);
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa1024Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pkcs1_v15_verify(&rsa, nullptr, nullptr, MBEDTLS_RSA_PUBLIC, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
 
 	return ret;
 }
 
 int fnd::rsa::pkcs::rsaSign(const sRsa2048Key & key, HashType hash_type, const uint8_t * hash, uint8_t signature[kRsa2048Size])
 {
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V15, 0);
+	int ret = 0;
 
-	ctx.len = kRsa2048Size;
-	mpi_read_binary(&ctx.D, key.priv_exponent, ctx.len);
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_rsa_context rsa;
 
-	ret = rsa_rsassa_pkcs1_v15_sign(&ctx, RSA_PRIVATE, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+	// init context
+	mbedtls_entropy_init( &entropy );
+	mbedtls_ctr_drbg_init( &ctr_drbg );
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
 
-	rsa_free(&ctx);
+	// init prbg 
+	const char* pers = "fnd::rsa::pkcs::rsaSign";
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const uint8_t*)pers, strlen(pers));
+	if (ret) 
+		goto cleanup;
+
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa2048Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   key.priv_exponent, kRsa2048Size, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pkcs1_v15_sign(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_RSA_PRIVATE, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
+	mbedtls_ctr_drbg_free( &ctr_drbg );
+	mbedtls_entropy_free( &entropy );
 
 	return ret;
 }
 
 int fnd::rsa::pkcs::rsaVerify(const sRsa2048Key & key, HashType hash_type, const uint8_t * hash, const uint8_t signature[kRsa2048Size])
 {
-	static const uint8_t public_exponent[3] = { 0x01, 0x00, 0x01 };
+	int ret = 0;
 
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V15, 0);
+	mbedtls_rsa_context rsa;
 
-	ctx.len = kRsa2048Size;
-	mpi_read_binary(&ctx.E, public_exponent, sizeof(public_exponent));
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	// init context
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
 
-	ret = rsa_rsassa_pkcs1_v15_verify(&ctx, RSA_PUBLIC, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
 
-	rsa_free(&ctx);
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa2048Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pkcs1_v15_verify(&rsa, nullptr, nullptr, MBEDTLS_RSA_PUBLIC, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
 
 	return ret;
 }
 
 int fnd::rsa::pkcs::rsaSign(const sRsa4096Key & key, HashType hash_type, const uint8_t * hash, uint8_t signature[kRsa4096Size])
 {
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V15, 0);
+	int ret = 0;
 
-	ctx.len = kRsa4096Size;
-	mpi_read_binary(&ctx.D, key.priv_exponent, ctx.len);
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_rsa_context rsa;
 
-	ret = rsa_rsassa_pkcs1_v15_sign(&ctx, RSA_PRIVATE, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+	// init context
+	mbedtls_entropy_init( &entropy );
+	mbedtls_ctr_drbg_init( &ctr_drbg );
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
 
-	rsa_free(&ctx);
+	// init prbg 
+	const char* pers = "fnd::rsa::pkcs::rsaSign";
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const uint8_t*)pers, strlen(pers));
+	if (ret) 
+		goto cleanup;
+
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa4096Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   key.priv_exponent, kRsa4096Size, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pkcs1_v15_sign(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_RSA_PRIVATE, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
+	mbedtls_ctr_drbg_free( &ctr_drbg );
+	mbedtls_entropy_free( &entropy );
 
 	return ret;
 }
 
 int fnd::rsa::pkcs::rsaVerify(const sRsa4096Key & key, HashType hash_type, const uint8_t * hash, const uint8_t signature[kRsa4096Size])
 {
-	static const uint8_t public_exponent[3] = { 0x01, 0x00, 0x01 };
+	int ret = 0;
 
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V15, 0);
+	mbedtls_rsa_context rsa;
 
-	ctx.len = kRsa4096Size;
-	mpi_read_binary(&ctx.E, public_exponent, sizeof(public_exponent));
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	// init context
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V15, 0 );
 
-	ret = rsa_rsassa_pkcs1_v15_verify(&ctx, RSA_PUBLIC, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
 
-	rsa_free(&ctx);
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa4096Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pkcs1_v15_verify(&rsa, nullptr, nullptr, MBEDTLS_RSA_PUBLIC, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
 
 	return ret;
 }
 
 int fnd::rsa::pss::rsaSign(const sRsa2048Key & key, HashType hash_type, const uint8_t * hash, uint8_t signature[kRsa2048Size])
 {
-	int ret;
+	int ret = 0;
+
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_rsa_context rsa;
+
+	// init context
+	mbedtls_entropy_init( &entropy );
+	mbedtls_ctr_drbg_init( &ctr_drbg );
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V21, getMdWrappedHashType(hash_type) );
+
+	// init prbg 
 	const char* pers = "fnd::rsa::pss::rsaSign";
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const uint8_t*)pers, strlen(pers));
+	if (ret) 
+		goto cleanup;
 
-	// rsa
-	rsa_context rsa;
-	rsa_init(&rsa, RSA_PKCS_V21, getMdWrappedHashType(hash_type));
-	rsa.len = kRsa2048Size;
-	mpi_read_binary(&rsa.D, key.priv_exponent, rsa.len);
-	mpi_read_binary(&rsa.N, key.modulus, rsa.len);
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa2048Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   key.priv_exponent, kRsa2048Size, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
 
-	entropy_context entropy;
-	entropy_init(&entropy);
-	
-	ctr_drbg_context ctr_drbg;
-	ctr_drbg_init(&ctr_drbg, entropy_func, &entropy, (const uint8_t*)pers, strlen(pers));
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pss_sign(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_RSA_PRIVATE, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
 
-	ret = rsa_rsassa_pss_sign(&rsa, ctr_drbg_random, &ctr_drbg, RSA_PRIVATE, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
-
-	rsa_free(&rsa);
-	
+	cleanup:
+	mbedtls_rsa_free( &rsa );
+	mbedtls_ctr_drbg_free( &ctr_drbg );
+	mbedtls_entropy_free( &entropy );
 
 	return ret;
 }
 
-
 int fnd::rsa::pss::rsaVerify(const sRsa2048Key & key, HashType hash_type, const uint8_t * hash, const uint8_t signature[kRsa2048Size])
 {
-	static const uint8_t public_exponent[3] = { 0x01, 0x00, 0x01 };
+	int ret = 0;
 
-	int ret;
-	rsa_context ctx;
-	rsa_init(&ctx, RSA_PKCS_V21, getMdWrappedHashType(hash_type));
+	mbedtls_rsa_context rsa;
 
-	ctx.len = kRsa2048Size;
-	mpi_read_binary(&ctx.E, public_exponent, sizeof(public_exponent));
-	mpi_read_binary(&ctx.N, key.modulus, ctx.len);
+	// init context
+	mbedtls_rsa_init( &rsa, MBEDTLS_RSA_PKCS_V21, getMdWrappedHashType(hash_type) );
 
-	ret = rsa_rsassa_pss_verify(&ctx, RSA_PUBLIC, getWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
 
-	rsa_free(&ctx);
+	// init rsa key
+	ret = mbedtls_rsa_import_raw(&rsa, \
+		                       key.modulus, kRsa2048Size, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   nullptr, 0, \
+							   (uint8_t[]){0x01, 0x00, 0x01}, 3);
+	if (ret)
+		goto cleanup;
+
+	// sign hash
+	ret = mbedtls_rsa_rsassa_pss_verify(&rsa, nullptr, nullptr, MBEDTLS_RSA_PUBLIC, getMdWrappedHashType(hash_type), getWrappedHashSize(hash_type), hash, signature);
+
+	cleanup:
+	mbedtls_rsa_free( &rsa );
 
 	return ret;
 }
