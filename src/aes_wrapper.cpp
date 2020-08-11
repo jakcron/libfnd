@@ -1,5 +1,5 @@
 #include <fnd/aes.h>
-#include <polarssl/aes.h>
+#include <mbedtls/aes.h>
 
 using namespace fnd::aes;
 
@@ -18,34 +18,34 @@ inline void putbe32(uint8_t* data, uint32_t val) { data[0] = val >> 24; data[1] 
 
 void fnd::aes::AesEcbDecrypt(const uint8_t * in, uint64_t size, const uint8_t key[kAes128KeySize], uint8_t * out)
 {
-	aes_context ctx;
-	aes_setkey_dec(&ctx, key, 128);
+	mbedtls_aes_context ctx;
+	mbedtls_aes_setkey_dec(&ctx, key, 128);
 	
 	for (size_t i = 0; i < size / kAesBlockSize; i++)
 	{
-		aes_crypt_ecb(&ctx, AES_DECRYPT, in + kAesBlockSize * i, out + kAesBlockSize * i);
+		mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_DECRYPT, in + kAesBlockSize * i, out + kAesBlockSize * i);
 	}
 	
 }
 
 void fnd::aes::AesEcbEncrypt(const uint8_t * in, uint64_t size, const uint8_t key[kAes128KeySize], uint8_t * out)
 {
-	aes_context ctx;
-	aes_setkey_enc(&ctx, key, 128);
+	mbedtls_aes_context ctx;
+	mbedtls_aes_setkey_enc(&ctx, key, 128);
 	for (size_t i = 0; i < size / kAesBlockSize; i++)
 	{
-		aes_crypt_ecb(&ctx, AES_ENCRYPT, in + kAesBlockSize * i, out + kAesBlockSize * i);
+		mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_ENCRYPT, in + kAesBlockSize * i, out + kAesBlockSize * i);
 	}
 }
 
 void fnd::aes::AesCtr(const uint8_t* in, uint64_t size, const uint8_t key[kAes128KeySize], uint8_t ctr[kAesBlockSize], uint8_t* out)
 {
-	aes_context ctx;
+	mbedtls_aes_context ctx;
 	uint8_t block[kAesBlockSize] = { 0 };
 	size_t counterOffset = 0;
 
-	aes_setkey_enc(&ctx, key, 128);
-	aes_crypt_ctr(&ctx, size, &counterOffset, ctr, block, in, out);
+	mbedtls_aes_setkey_enc(&ctx, key, 128);
+	mbedtls_aes_crypt_ctr(&ctx, size, &counterOffset, ctr, block, in, out);
 }
 
 void fnd::aes::AesIncrementCounter(const uint8_t in[kAesBlockSize], size_t block_num, uint8_t out[kAesBlockSize])
@@ -80,22 +80,22 @@ void fnd::aes::AesIncrementCounter(const uint8_t in[kAesBlockSize], size_t block
 
 void fnd::aes::AesCbcDecrypt(const uint8_t* in, uint64_t size, const uint8_t key[kAes128KeySize], uint8_t iv[kAesBlockSize], uint8_t* out)
 {
-	aes_context ctx;
-	aes_setkey_dec(&ctx, key, 128);
-	aes_crypt_cbc(&ctx, AES_DECRYPT, size, iv, in, out);
+	mbedtls_aes_context ctx;
+	mbedtls_aes_setkey_dec(&ctx, key, 128);
+	mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_DECRYPT, size, iv, in, out);
 }
 
 void fnd::aes::AesCbcEncrypt(const uint8_t* in, uint64_t size, const uint8_t key[kAes128KeySize], uint8_t iv[kAesBlockSize], uint8_t* out)
 {
-	aes_context ctx;
-	aes_setkey_enc(&ctx, key, 128);
-	aes_crypt_cbc(&ctx, AES_ENCRYPT, size, iv, in, out);
+	mbedtls_aes_context ctx;
+	mbedtls_aes_setkey_enc(&ctx, key, 128);
+	mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, size, iv, in, out);
 }
 
 void fnd::aes::AesXtsDecryptSector(const uint8_t * in, uint64_t sector_size, const uint8_t key1[kAes128KeySize], const uint8_t key2[kAes128KeySize], uint8_t tweak[kAesBlockSize], uint8_t * out)
 {
-	aes_context data_ctx;
-	aes_setkey_dec(&data_ctx, key1, 128);
+	mbedtls_aes_context data_ctx;
+	mbedtls_aes_setkey_dec(&data_ctx, key1, 128);
 
 	uint8_t enc_tweak[kAesBlockSize];
 	AesEcbEncrypt(tweak, kAesBlockSize, key2, enc_tweak);
@@ -105,7 +105,7 @@ void fnd::aes::AesXtsDecryptSector(const uint8_t * in, uint64_t sector_size, con
 	for (size_t i = 0; i < block_num; i++)
 	{
 		XorBlock(in + (i * kAesBlockSize), enc_tweak, block);
-		aes_crypt_ecb(&data_ctx, AES_DECRYPT, block, block);
+		mbedtls_aes_crypt_ecb(&data_ctx, MBEDTLS_AES_DECRYPT, block, block);
 		XorBlock(block, enc_tweak, out + i * kAesBlockSize);
 		GaloisFunc(enc_tweak);
 	}
@@ -118,8 +118,8 @@ void fnd::aes::AesXtsDecryptSector(const uint8_t * in, uint64_t sector_size, con
 
 void fnd::aes::AesXtsEncryptSector(const uint8_t * in, uint64_t sector_size, const uint8_t key1[kAes128KeySize], const uint8_t key2[kAes128KeySize], uint8_t tweak[kAesBlockSize], uint8_t * out)
 {
-	aes_context data_ctx;
-	aes_setkey_enc(&data_ctx, key1, 128);
+	mbedtls_aes_context data_ctx;
+	mbedtls_aes_setkey_enc(&data_ctx, key1, 128);
 
 	uint8_t enc_tweak[kAesBlockSize];
 	AesEcbEncrypt(tweak, kAesBlockSize, key2, enc_tweak);
@@ -129,7 +129,7 @@ void fnd::aes::AesXtsEncryptSector(const uint8_t * in, uint64_t sector_size, con
 	for (size_t i = 0; i < block_num; i++)
 	{
 		XorBlock(in + (i * kAesBlockSize), enc_tweak, block);
-		aes_crypt_ecb(&data_ctx, AES_ENCRYPT, block, block);
+		mbedtls_aes_crypt_ecb(&data_ctx, MBEDTLS_AES_ENCRYPT, block, block);
 		XorBlock(block, enc_tweak, out + (i * kAesBlockSize));
 		GaloisFunc(enc_tweak);
 	}
